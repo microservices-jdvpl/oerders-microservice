@@ -1,6 +1,7 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { PrismaClient } from '@prisma/client';
+import { RpcException } from '@nestjs/microservices';
 
 @Injectable()
 export class OrdersService extends PrismaClient implements OnModuleInit {
@@ -10,15 +11,22 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
     this.logger.log('Connected to the database');
   }
   create(createOrderDto: CreateOrderDto) {
-    return 'This action adds a new order';
+    return this.order.create({ data: createOrderDto });
   }
 
   findAll() {
     return `This action returns all orders`;
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} order`;
+  async findOne(id: string) {
+    const order = await this.order.findFirst({ where: { id } });
+    if (!order) {
+      throw new RpcException({
+        message: `Order with ${id} not found`,
+        status: HttpStatus.NOT_FOUND,
+      });
+    }
+    return order;
   }
 
   changeStatus() {
