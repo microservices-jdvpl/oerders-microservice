@@ -1,29 +1,29 @@
-import { OrderStatus } from '@prisma/client';
 import {
-  IsBoolean,
-  IsEnum,
+  ArrayMinSize,
+  IsArray,
   IsNumber,
-  IsOptional,
   IsPositive,
+  ValidateNested,
 } from 'class-validator';
-import { OrderStatusList } from '../enum/order.enum';
+import { Type } from 'class-transformer';
 
+export class ItemsOrderDto {
+  @IsNumber()
+  @IsPositive()
+  productId: number;
+
+  @IsNumber()
+  @IsPositive()
+  quantity: number;
+
+  @IsNumber()
+  @IsPositive()
+  price: boolean;
+}
 export class CreateOrderDto {
-  @IsNumber()
-  @IsPositive()
-  totalAmount: number;
-
-  @IsNumber()
-  @IsPositive()
-  totalItems: number;
-
-  @IsEnum(OrderStatusList, {
-    message: `status must be one of the following values: ${OrderStatusList}`,
-  })
-  @IsOptional()
-  status: OrderStatus = OrderStatus.PENDING;
-
-  @IsOptional()
-  @IsBoolean()
-  paid: boolean = false;
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => ItemsOrderDto)
+  items: ItemsOrderDto[];
 }
