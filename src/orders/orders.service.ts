@@ -16,11 +16,13 @@ import { firstValueFrom } from 'rxjs';
 @Injectable()
 export class OrdersService extends PrismaClient implements OnModuleInit {
   private readonly logger = new Logger(OrdersService.name);
+
   constructor(
     @Inject(PRODUCT_SERVICE) private readonly productsClient: ClientProxy,
   ) {
     super();
   }
+
   async onModuleInit() {
     await this.$connect();
     this.logger.log('Connected to the database');
@@ -31,7 +33,7 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
         (product) => product.productId,
       );
       const ids = Array.from(new Set(productIds));
-      const products = await firstValueFrom(
+      const products: any[] = await firstValueFrom(
         this.productsClient.send({ cmd: 'valide_products_ids' }, { ids }),
       );
 
@@ -112,14 +114,40 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
   }
 
   async findOne(id: string) {
-    const order = await this.order.findFirst({ where: { id } });
+    const order = await this.order.findFirst({
+      where: { id },
+      include: {
+        OrderItem: {
+          select: {
+            price: true,
+            quantity: true,
+            productId: true,
+          },
+        },
+      },
+    });
     if (!order) {
       throw new RpcException({
         message: `Order with ${id} not found`,
         status: HttpStatus.NOT_FOUND,
       });
     }
-    return order;
+    const productIds = order.OrderItem.map((orderItem) => orderItem.productId);
+    const products: any[] = await firstValueFrom(
+      this.productsClient.send(
+        { cmd: 'valide_products_ids' },
+        { ids: productIds },
+      ),
+    );
+
+    return {
+      ...order,
+      OrderItem: order.OrderItem.map((orderItem) => ({
+        ...orderItem,
+        name: products.find((product) => product.id === orderItem.productId)
+          .name,
+      })),
+    };
   }
 
   async changeStatus(body: OrderStatusDto) {
